@@ -81,11 +81,12 @@ public struct DiagnosticBundleBuilder: Sendable {
 
         lines.append("")
         lines.append("Expected response:")
-        lines.append("1. State the top 3 issues by operational risk.")
-        lines.append("2. For each issue, explain the likely root cause from the evidence.")
-        lines.append("3. Give the minimal safe fix path with concrete terminal commands for manual review.")
-        lines.append("4. Separate actions into NOW / NEXT / LATER.")
-        lines.append("5. Keep it under 350 words.")
+        lines.append("Start immediately with the exact heading NOW.")
+        lines.append("Use only these headings: NOW, NEXT, LATER.")
+        lines.append("Do not write an intro like 'Based on the provided information'.")
+        lines.append("For each issue, include: risk, evidence, likely root cause, and minimal safe manual commands.")
+        lines.append("Do not suggest destructive git reset or deletion.")
+        lines.append("Keep it under 350 words.")
 
         return lines.joined(separator: "\n")
     }

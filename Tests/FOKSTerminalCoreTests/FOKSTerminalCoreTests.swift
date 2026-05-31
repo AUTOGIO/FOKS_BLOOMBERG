@@ -189,7 +189,7 @@ final class FOKSTerminalCoreTests: XCTestCase {
 
         XCTAssertTrue(bundle.contains("M core/views.py"))
         XCTAssertTrue(bundle.contains("com.personallifeos"))
-        XCTAssertTrue(bundle.contains("NOW / NEXT / LATER"))
+        XCTAssertTrue(bundle.contains("Use only these headings: NOW, NEXT, LATER"))
     }
 
     func testCommandTimeout() async {

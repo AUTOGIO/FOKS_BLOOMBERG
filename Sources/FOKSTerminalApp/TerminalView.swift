@@ -1,4 +1,5 @@
 import FOKSTerminalCore
+import AppKit
 import Observation
 import SwiftUI
 
@@ -46,6 +47,7 @@ final class TerminalStore {
 
 struct TerminalView: View {
     @State private var store = TerminalStore()
+    @State private var showingAIReport = false
     @AppStorage("foks.fontScale") private var fontScale = 1.0
     @AppStorage("foks.theme") private var themeName = TerminalTheme.amber.rawValue
     @AppStorage("foks.localAIModel") private var localAIModel = "llama3.2:latest"
@@ -73,6 +75,10 @@ struct TerminalView: View {
         .background(theme.background)
         .task {
             await store.refresh()
+        }
+        .sheet(isPresented: $showingAIReport) {
+            AIReportView(analysis: store.aiAnalysis, theme: theme)
+                .frame(minWidth: 760, minHeight: 620)
         }
     }
 
@@ -354,9 +360,19 @@ struct TerminalView: View {
                     .frame(width: 210)
 
                     Button(store.isAnalyzing ? "ANALYZING" : "ANALYZE METRICS") {
-                        Task { await store.analyzeWithLocalAI(model: localAIModel) }
+                        Task {
+                            await store.analyzeWithLocalAI(model: localAIModel)
+                            if store.aiAnalysis.status == .ready {
+                                showingAIReport = true
+                            }
+                        }
                     }
                     .disabled(store.isAnalyzing || store.isRefreshing)
+
+                    Button("OPEN REPORT") {
+                        showingAIReport = true
+                    }
+                    .disabled(store.aiAnalysis.status == .idle || store.aiAnalysis.status == .running)
 
                     Spacer()
                 }
@@ -369,7 +385,7 @@ struct TerminalView: View {
                         .textSelection(.enabled)
                         .frame(maxWidth: .infinity, alignment: .leading)
                 }
-                .frame(minHeight: 90)
+                .frame(minHeight: 130, idealHeight: 180)
             }
             .padding(10)
         }
@@ -455,6 +471,57 @@ struct TerminalView: View {
         case .stopped: theme.accent
         case .unknown: theme.accent
         }
+    }
+
+    private func color(for status: LocalAIAnalysis.Status) -> Color {
+        switch status {
+        case .idle: theme.muted
+        case .running: theme.cyan
+        case .ready: theme.green
+        case .failed: theme.red
+        }
+    }
+}
+
+struct AIReportView: View {
+    let analysis: LocalAIAnalysis
+    let theme: TerminalTheme
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Text("LOCAL AI REPORT")
+                    .foregroundStyle(theme.accent)
+                    .fontWeight(.black)
+                    .tracking(2)
+                Text("\(analysis.provider) · \(analysis.model) · \(analysis.status.rawValue)")
+                    .foregroundStyle(theme.muted)
+                Spacer()
+                Button("COPY") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(analysis.text, forType: .string)
+                }
+                Button("CLOSE") {
+                    dismiss()
+                }
+            }
+            .buttonStyle(.bordered)
+            .padding(12)
+            .background(theme.topBackground)
+            .overlay(Rectangle().fill(theme.accent.opacity(0.7)).frame(height: 1), alignment: .bottom)
+
+            ScrollView {
+                Text(analysis.text)
+                    .font(.system(size: 13, design: .monospaced))
+                    .foregroundStyle(color(for: analysis.status))
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+            }
+            .background(theme.background)
+        }
+        .background(theme.background)
     }
 
     private func color(for status: LocalAIAnalysis.Status) -> Color {
