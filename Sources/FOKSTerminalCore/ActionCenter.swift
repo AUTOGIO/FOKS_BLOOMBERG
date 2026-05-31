@@ -19,7 +19,12 @@ public struct ActionCenterBuilder: Sendable {
                     scope: "FoKS",
                     evidence: "No failed LaunchAgents, dirty projects, missing repos, or log warnings in the current snapshot.",
                     nextStep: "Keep working. Refresh after changing repos or services.",
-                    command: "cd /Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG && ./scripts/validate.sh"
+                    command: "cd /Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG && ./scripts/validate.sh",
+                    check: ReadOnlyCheck(
+                        title: "Check FOKS git state",
+                        executable: "/usr/bin/git",
+                        arguments: ["-C", "/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG", "status", "--short", "--branch"]
+                    )
                 )
             )
         }
@@ -51,7 +56,12 @@ public struct ActionCenterBuilder: Sendable {
                         "plutil -p '\(plist)'",
                         "tail -80 '\(stderr)'",
                         "tail -40 '\(stdout)'"
-                    ].joined(separator: "\n")
+                    ].joined(separator: "\n"),
+                    check: ReadOnlyCheck(
+                        title: "Tail LaunchAgent stderr",
+                        executable: "/usr/bin/tail",
+                        arguments: ["-80", stderr]
+                    )
                 )
             }
     }
@@ -69,7 +79,12 @@ public struct ActionCenterBuilder: Sendable {
                         scope: project.shortName,
                         evidence: project.path,
                         nextStep: "Confirm the folder was moved or update config/projects.json.",
-                        command: "ls -la '\(project.path)'\nopen '\(URL(fileURLWithPath: project.path).deletingLastPathComponent().path)'"
+                        command: "ls -la '\(project.path)'\nopen '\(URL(fileURLWithPath: project.path).deletingLastPathComponent().path)'",
+                        check: ReadOnlyCheck(
+                            title: "List parent folder",
+                            executable: "/bin/ls",
+                            arguments: ["-la", URL(fileURLWithPath: project.path).deletingLastPathComponent().path]
+                        )
                     )
                 )
             }
@@ -83,7 +98,12 @@ public struct ActionCenterBuilder: Sendable {
                         scope: project.shortName,
                         evidence: dirtyEvidence(project),
                         nextStep: "Classify changes as keep, archive, ignore, or discard manually.",
-                        command: "cd '\(project.path)' && git status --short\ncd '\(project.path)' && git diff --stat"
+                        command: "cd '\(project.path)' && git status --short\ncd '\(project.path)' && git diff --stat",
+                        check: ReadOnlyCheck(
+                            title: "Check git dirty files",
+                            executable: "/usr/bin/git",
+                            arguments: ["-C", project.path, "status", "--short"]
+                        )
                     )
                 )
             }
@@ -97,7 +117,12 @@ public struct ActionCenterBuilder: Sendable {
                         scope: project.shortName,
                         evidence: "\(project.ahead) commit\(project.ahead == 1 ? "" : "s") ahead on \(project.branch)",
                         nextStep: "Inspect commits, then push if they are intentional.",
-                        command: "cd '\(project.path)' && git log --oneline --decorate -n 8\ncd '\(project.path)' && git status --branch --short"
+                        command: "cd '\(project.path)' && git log --oneline --decorate -n 8\ncd '\(project.path)' && git status --branch --short",
+                        check: ReadOnlyCheck(
+                            title: "Review unpushed commits",
+                            executable: "/usr/bin/git",
+                            arguments: ["-C", project.path, "log", "--oneline", "--decorate", "-n", "8"]
+                        )
                     )
                 )
             }
@@ -119,7 +144,12 @@ public struct ActionCenterBuilder: Sendable {
                 scope: "Logs",
                 evidence: "No FoKS log file found in ~/foks/logs or ~/Library/Logs/FOKS.",
                 nextStep: "Create the folder before wiring future monitors.",
-                command: "mkdir -p ~/Library/Logs/FOKS\nls -la ~/Library/Logs/FOKS"
+                command: "mkdir -p ~/Library/Logs/FOKS\nls -la ~/Library/Logs/FOKS",
+                check: ReadOnlyCheck(
+                    title: "Check log parent",
+                    executable: "/bin/ls",
+                    arguments: ["-la", "\(NSHomeDirectory())/Library/Logs"]
+                )
             )
         ]
     }

@@ -242,6 +242,66 @@ final class FOKSTerminalCoreTests: XCTestCase {
         XCTAssertEqual(actions.first?.id, "agent-com.personallifeos")
         XCTAssertEqual(actions.first?.severity, .critical)
         XCTAssertTrue(actions.first?.command.contains("tail -80 '/tmp/personallifeos.err'") == true)
-        XCTAssertTrue(actions.contains { $0.id == "project-dirty-gmc" })
+        XCTAssertEqual(actions.first?.check?.executable, "/usr/bin/tail")
+        XCTAssertTrue(actions.contains { $0.id == "project-dirty-gmc" && $0.check?.executable == "/usr/bin/git" })
+    }
+
+    func testDailyOpsReportIncludesActionableSummary() {
+        let snapshot = DashboardSnapshot(
+            projects: [
+                ProjectStatus(
+                    id: "gmc",
+                    shortName: "GMC",
+                    displayName: "GMC",
+                    path: "/tmp/gmc",
+                    group: "FINANCE",
+                    health: .dirty,
+                    reason: "3 dirty files",
+                    branch: "main",
+                    dirtyFiles: 3,
+                    dirtyItems: ["M src/App.jsx"]
+                ),
+                ProjectStatus(
+                    id: "foks",
+                    shortName: "FOKS",
+                    displayName: "FOKS Bloomberg Terminal",
+                    path: "/tmp/foks",
+                    group: "OPS",
+                    health: .unpushed,
+                    reason: "2 unpushed commits",
+                    branch: "main",
+                    ahead: 2
+                )
+            ],
+            hardware: .empty,
+            processes: [],
+            launchAgents: [
+                LaunchAgentSnapshot(
+                    pid: "none",
+                    status: "1",
+                    label: "com.personallifeos",
+                    state: "spawn scheduled",
+                    health: .failed,
+                    reason: "last exit 1; runs 10",
+                    stderrPath: "/tmp/personallifeos.err"
+                )
+            ],
+            logs: []
+        )
+
+        let actions = ActionCenterBuilder().build(snapshot: snapshot)
+        let report = DailyOpsReportBuilder().build(
+            snapshot: snapshot,
+            actions: actions,
+            generatedAt: Date(timeIntervalSince1970: 0)
+        )
+
+        XCTAssertTrue(report.contains("# FoKS Daily Ops Report"))
+        XCTAssertTrue(report.contains("- Dirty repos: 1"))
+        XCTAssertTrue(report.contains("- Unpushed repos: 1"))
+        XCTAssertTrue(report.contains("- Failed LaunchAgents: 1"))
+        XCTAssertTrue(report.contains("[CRITICAL] com.personallifeos: Fix failing LaunchAgent"))
+        XCTAssertTrue(report.contains("GMC: 3 dirty files"))
+        XCTAssertTrue(report.contains("FOKS: 2 ahead on main"))
     }
 }

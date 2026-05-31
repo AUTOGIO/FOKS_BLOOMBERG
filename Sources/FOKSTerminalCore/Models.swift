@@ -323,6 +323,7 @@ public struct OperationalAction: Identifiable, Sendable, Equatable {
     public let evidence: String
     public let nextStep: String
     public let command: String
+    public let check: ReadOnlyCheck?
 
     public enum Severity: String, Sendable, Equatable {
         case critical = "CRITICAL"
@@ -345,7 +346,8 @@ public struct OperationalAction: Identifiable, Sendable, Equatable {
         scope: String,
         evidence: String,
         nextStep: String,
-        command: String
+        command: String,
+        check: ReadOnlyCheck? = nil
     ) {
         self.id = id
         self.severity = severity
@@ -354,5 +356,65 @@ public struct OperationalAction: Identifiable, Sendable, Equatable {
         self.evidence = evidence
         self.nextStep = nextStep
         self.command = command
+        self.check = check
+    }
+}
+
+public struct ReadOnlyCheck: Sendable, Equatable {
+    public let title: String
+    public let executable: String
+    public let arguments: [String]
+    public let timeoutSeconds: Double
+
+    public var displayCommand: String {
+        ([executable] + arguments.map(Self.quoteIfNeeded)).joined(separator: " ")
+    }
+
+    public init(title: String, executable: String, arguments: [String], timeoutSeconds: Double = 6) {
+        self.title = title
+        self.executable = executable
+        self.arguments = arguments
+        self.timeoutSeconds = timeoutSeconds
+    }
+
+    private static func quoteIfNeeded(_ value: String) -> String {
+        guard value.contains(where: { $0.isWhitespace || $0 == "'" }) else { return value }
+        return "'" + value.replacingOccurrences(of: "'", with: "'\\''") + "'"
+    }
+}
+
+public struct ReadOnlyCheckResult: Sendable, Equatable {
+    public let actionID: String
+    public let title: String
+    public let command: String
+    public let exitCode: Int32
+    public let output: String
+    public let error: String
+    public let timedOut: Bool
+    public let ranAt: Date
+
+    public var combinedOutput: String {
+        let text = [output, error].filter { !$0.isEmpty }.joined(separator: "\n")
+        return text.isEmpty ? "(no output)" : text
+    }
+
+    public init(
+        actionID: String,
+        title: String,
+        command: String,
+        exitCode: Int32,
+        output: String,
+        error: String,
+        timedOut: Bool,
+        ranAt: Date = Date()
+    ) {
+        self.actionID = actionID
+        self.title = title
+        self.command = command
+        self.exitCode = exitCode
+        self.output = output
+        self.error = error
+        self.timedOut = timedOut
+        self.ranAt = ranAt
     }
 }

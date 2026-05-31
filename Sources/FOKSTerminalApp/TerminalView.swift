@@ -13,12 +13,16 @@ final class TerminalStore {
     var selectedProjectID: ProjectStatus.ID?
     var isRefreshing = false
     var isAnalyzing = false
+    var runningCheckActionID: OperationalAction.ID?
     var aiAnalysis: LocalAIAnalysis = .idle
+    var checkResult: ReadOnlyCheckResult?
     var statusMessage = "READ ONLY - no scripts executed"
 
     private let reader = SystemReader()
     private let aiAdvisor = LocalAIAdvisor()
     private let actionBuilder = ActionCenterBuilder()
+    private let reportBuilder = DailyOpsReportBuilder()
+    private let commandRunner = CommandRunner()
 
     func refresh() async {
         guard !isRefreshing else { return }
@@ -49,8 +53,41 @@ final class TerminalStore {
         isAnalyzing = false
     }
 
+    func runReadOnlyCheck(_ action: OperationalAction) async {
+        guard runningCheckActionID == nil else { return }
+        guard let check = action.check else {
+            statusMessage = "No read-only check available for \(action.scope)"
+            return
+        }
+
+        runningCheckActionID = action.id
+        statusMessage = "Running read-only check: \(action.scope)"
+
+        let result = await commandRunner.run(
+            check.executable,
+            check.arguments,
+            timeout: check.timeoutSeconds
+        )
+
+        checkResult = ReadOnlyCheckResult(
+            actionID: action.id,
+            title: check.title,
+            command: check.displayCommand,
+            exitCode: result.exitCode,
+            output: result.output,
+            error: result.error,
+            timedOut: result.timedOut
+        )
+        statusMessage = result.timedOut ? "Read-only check timed out: \(action.scope)" : "Read-only check complete: \(action.scope)"
+        runningCheckActionID = nil
+    }
+
     var openActions: [OperationalAction] {
         actions.filter { !doneActionIDs.contains($0.id) && !ignoredActionIDs.contains($0.id) }
+    }
+
+    func dailyOpsReport() -> String {
+        reportBuilder.build(snapshot: snapshot, actions: openActions)
     }
 
     func markDone(_ action: OperationalAction) {
@@ -69,6 +106,7 @@ final class TerminalStore {
 struct TerminalView: View {
     @State private var store = TerminalStore()
     @State private var showingAIReport = false
+    @State private var showingCheckReport = false
     @AppStorage("foks.fontScale") private var fontScale = 1.0
     @AppStorage("foks.theme") private var themeName = TerminalTheme.amber.rawValue
     @AppStorage("foks.localAIModel") private var localAIModel = "llama3.2:latest"
@@ -100,6 +138,10 @@ struct TerminalView: View {
         .sheet(isPresented: $showingAIReport) {
             AIReportView(analysis: store.aiAnalysis, theme: theme)
                 .frame(minWidth: 760, minHeight: 620)
+        }
+        .sheet(isPresented: $showingCheckReport) {
+            CheckReportView(result: store.checkResult, theme: theme)
+                .frame(minWidth: 720, minHeight: 520)
         }
     }
 
@@ -412,6 +454,18 @@ struct TerminalView: View {
                 color: store.openActions.isEmpty ? theme.green : theme.accent
             )
             VStack(alignment: .leading, spacing: 7) {
+                HStack(spacing: 8) {
+                    Button("COPY DAILY REPORT") {
+                        copyToPasteboard(store.dailyOpsReport(), message: "Copied Daily Ops Report")
+                    }
+                    Button("REFRESH") {
+                        Task { await store.refresh() }
+                    }
+                    .disabled(store.isRefreshing)
+                    Spacer()
+                }
+                .buttonStyle(.bordered)
+
                 if store.openActions.isEmpty {
                     Text("No urgent operational actions in the current snapshot.")
                         .foregroundStyle(theme.green)
@@ -453,7 +507,14 @@ struct TerminalView: View {
                         FixQueueCard(
                             action: action,
                             theme: theme,
+                            isRunningCheck: store.runningCheckActionID == action.id,
                             copyCommand: { copyToPasteboard(action.command) },
+                            runCheck: {
+                                Task {
+                                    await store.runReadOnlyCheck(action)
+                                    showingCheckReport = true
+                                }
+                            },
                             markDone: { store.markDone(action) },
                             ignore: { store.ignore(action) }
                         )
@@ -476,7 +537,7 @@ struct TerminalView: View {
                 .foregroundStyle(theme.accent)
                 .fontWeight(.black)
             Text(store.statusMessage)
-                .foregroundStyle(store.isRefreshing || store.isAnalyzing ? theme.cyan : theme.muted)
+                .foregroundStyle(store.isRefreshing || store.isAnalyzing || store.runningCheckActionID != nil ? theme.cyan : theme.muted)
             Spacer()
             Text("Local AI advice only | no auto-fix execution")
                 .foregroundStyle(theme.accent.opacity(0.9))
@@ -495,10 +556,10 @@ struct TerminalView: View {
         store.snapshot.launchAgents.filter { $0.health == .failed }.count
     }
 
-    private func copyToPasteboard(_ text: String) {
+    private func copyToPasteboard(_ text: String, message: String = "Copied command for manual review") {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(text, forType: .string)
-        store.statusMessage = "Copied command for manual review"
+        store.statusMessage = message
     }
 
     private func count(_ health: ProjectStatus.Health) -> Int {
@@ -578,7 +639,9 @@ struct TerminalView: View {
 struct FixQueueCard: View {
     let action: OperationalAction
     let theme: TerminalTheme
+    let isRunningCheck: Bool
     let copyCommand: () -> Void
+    let runCheck: () -> Void
     let markDone: () -> Void
     let ignore: () -> Void
 
@@ -600,12 +663,14 @@ struct FixQueueCard: View {
                 .lineLimit(2)
             HStack(spacing: 8) {
                 Button("COPY COMMAND", action: copyCommand)
+                Button(isRunningCheck ? "CHECKING" : "RUN CHECK", action: runCheck)
+                    .disabled(action.check == nil || isRunningCheck)
                 Button("DONE", action: markDone)
                 Button("IGNORE", action: ignore)
                 Spacer()
             }
             .buttonStyle(.bordered)
-            Text(action.command.split(separator: "\n").first.map(String.init) ?? action.command)
+            Text(action.check?.displayCommand ?? action.command.split(separator: "\n").first.map(String.init) ?? action.command)
                 .foregroundStyle(theme.dim)
                 .lineLimit(1)
                 .truncationMode(.middle)
@@ -622,6 +687,78 @@ struct FixQueueCard: View {
         case .warning: theme.accent
         case .info: theme.cyan
         }
+    }
+}
+
+struct CheckReportView: View {
+    let result: ReadOnlyCheckResult?
+    let theme: TerminalTheme
+    @Environment(\.dismiss) private var dismiss
+
+    private var reportText: String {
+        guard let result else {
+            return "No read-only check result is available."
+        }
+
+        return [
+            "READ-ONLY CHECK",
+            "Title: \(result.title)",
+            "Command: \(result.command)",
+            "Exit: \(result.exitCode)",
+            "Timed out: \(result.timedOut ? "yes" : "no")",
+            "Ran at: \(result.ranAt.formatted(date: .abbreviated, time: .standard))",
+            "",
+            result.combinedOutput
+        ].joined(separator: "\n")
+    }
+
+    var body: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 10) {
+                Text("READ-ONLY CHECK")
+                    .foregroundStyle(theme.accent)
+                    .fontWeight(.black)
+                    .tracking(2)
+                Text(resultSummary)
+                    .foregroundStyle(theme.muted)
+                Spacer()
+                Button("COPY") {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(reportText, forType: .string)
+                }
+                Button("CLOSE") {
+                    dismiss()
+                }
+            }
+            .buttonStyle(.bordered)
+            .padding(12)
+            .background(theme.topBackground)
+            .overlay(Rectangle().fill(theme.accent.opacity(0.7)).frame(height: 1), alignment: .bottom)
+
+            ScrollView {
+                Text(reportText)
+                    .font(.system(size: 13, design: .monospaced))
+                    .foregroundStyle(resultColor)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(16)
+            }
+            .background(theme.background)
+        }
+        .background(theme.background)
+    }
+
+    private var resultSummary: String {
+        guard let result else { return "NO RESULT" }
+        return "exit \(result.exitCode) · \(result.timedOut ? "TIMEOUT" : "COMPLETE")"
+    }
+
+    private var resultColor: Color {
+        guard let result else { return theme.muted }
+        if result.timedOut || result.exitCode != 0 {
+            return theme.accent
+        }
+        return theme.green
     }
 }
 

@@ -20,16 +20,18 @@ This version is intentionally read-only:
 
 - project inventory from `config/projects.json`
 - git health inspection with `/usr/bin/git`, including dirty-file previews
-- hardware overview from `sysctl`, `sw_vers`, and `uptime`
+- system facts from `sysctl`, `sw_vers`, and `uptime` for diagnostic context
 - process watchlist from `/bin/ps`
 - LaunchAgent watchlist and failure analysis from `/bin/launchctl`
 - recent FoKS logs from allowlisted local log paths
 - Action Center with prioritized operational issues
-- Fix Queue with copy-only manual command cards
+- Daily Ops Report copy action for fast handoff into notes or AI review
+- Fix Queue with copy-only manual command cards and read-only `RUN CHECK` buttons
 - local AI advisor through Ollama's `127.0.0.1:11434` HTTP API for diagnostic analysis and fix planning
 
 No cloud calls, no auto-fix execution, no destructive command buttons, and no stored API keys.
 The AI advisor sends a compact local diagnostic bundle to an installed Ollama model and renders advice only.
+`RUN CHECK` buttons execute explicit binaries with explicit arguments through the timeout runner; they do not execute shell snippets.
 
 ## Run
 
@@ -87,6 +89,7 @@ Core readers
 -> parser layer
 -> dashboard snapshot
 -> action center and fix queue
+-> daily ops report builder
 -> SwiftUI read-only interface
 -> manual refresh trigger
 -> local Ollama advisor
