@@ -1,0 +1,44 @@
+{
+  "projects": [
+    {
+      "id": "foks",
+      "shortName": "FOKS",
+      "displayName": "FOKS Bloomberg Terminal",
+      "path": "/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG",
+      "group": "OPS",
+      "enabled": true
+    },
+    {
+      "id": "ffa",
+      "shortName": "FFA",
+      "displayName": "FuloFilo Analytics",
+      "path": "/Users/eduardofgiovannini/Documents/GitHub/fulofilo-analytics",
+      "group": "BUSINESS",
+      "enabled": true
+    },
+    {
+      "id": "gmc",
+      "shortName": "GMC",
+      "displayName": "GMC",
+      "path": "/Users/eduardofgiovannini/Documents/GitHub/GMC",
+      "group": "FINANCE",
+      "enabled": true
+    },
+    {
+      "id": "gfin",
+      "shortName": "GFIN",
+      "displayName": "Giovannini Finance",
+      "path": "/Users/eduardofgiovannini/Documents/GitHub/giovannini-finance",
+      "group": "FINANCE",
+      "enabled": true
+    },
+    {
+      "id": "life",
+      "shortName": "LIFE",
+      "displayName": "Personal Life OS",
+      "path": "/Users/eduardofgiovannini/Documents/GitHub/PersonalLifeOS",
+      "group": "LIFE",
+      "enabled": true
+    }
+  ]
+}

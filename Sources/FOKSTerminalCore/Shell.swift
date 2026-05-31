@@ -1,33 +1,54 @@
 import Foundation
 
-public struct ShellResult: Sendable, Equatable {
-    public let command: String
+public struct CommandResult: Sendable, Equatable {
+    public let executable: String
+    public let arguments: [String]
     public let exitCode: Int32
     public let output: String
     public let error: String
+    public let timedOut: Bool
 
     public var combinedOutput: String {
         [output, error].filter { !$0.isEmpty }.joined(separator: "\n")
     }
-}
 
-public enum ShellError: Error, LocalizedError {
-    case launchFailed(String)
-
-    public var errorDescription: String? {
-        switch self {
-        case .launchFailed(let message):
-            return message
-        }
+    public init(
+        executable: String,
+        arguments: [String],
+        exitCode: Int32,
+        output: String,
+        error: String,
+        timedOut: Bool = false
+    ) {
+        self.executable = executable
+        self.arguments = arguments
+        self.exitCode = exitCode
+        self.output = output
+        self.error = error
+        self.timedOut = timedOut
     }
 }
 
-public struct Shell: Sendable {
+public struct CommandRunner: Sendable {
     public init() {}
 
-    public func run(_ launchPath: String, _ arguments: [String], timeout: TimeInterval = 6) throws -> ShellResult {
+    public func run(
+        _ executable: String,
+        _ arguments: [String] = [],
+        timeout: TimeInterval = 5
+    ) async -> CommandResult {
+        await Task.detached(priority: .utility) {
+            Self.runBlocking(executable: executable, arguments: arguments, timeout: timeout)
+        }.value
+    }
+
+    private static func runBlocking(
+        executable: String,
+        arguments: [String],
+        timeout: TimeInterval
+    ) -> CommandResult {
         let process = Process()
-        process.executableURL = URL(fileURLWithPath: launchPath)
+        process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments
 
         let stdout = Pipe()
@@ -38,16 +59,25 @@ public struct Shell: Sendable {
         do {
             try process.run()
         } catch {
-            throw ShellError.launchFailed("Failed to launch \(launchPath): \(error.localizedDescription)")
+            return CommandResult(
+                executable: executable,
+                arguments: arguments,
+                exitCode: -1,
+                output: "",
+                error: "launch failed: \(error.localizedDescription)"
+            )
         }
 
         let deadline = Date().addingTimeInterval(timeout)
-        while process.isRunning && Date() < deadline {
-            Thread.sleep(forTimeInterval: 0.05)
-        }
+        var timedOut = false
 
-        if process.isRunning {
-            process.terminate()
+        while process.isRunning {
+            if Date() >= deadline {
+                timedOut = true
+                process.terminate()
+                break
+            }
+            Thread.sleep(forTimeInterval: 0.02)
         }
 
         process.waitUntilExit()
@@ -55,15 +85,13 @@ public struct Shell: Sendable {
         let outData = stdout.fileHandleForReading.readDataToEndOfFile()
         let errData = stderr.fileHandleForReading.readDataToEndOfFile()
 
-        return ShellResult(
-            command: ([launchPath] + arguments).joined(separator: " "),
-            exitCode: process.terminationStatus,
+        return CommandResult(
+            executable: executable,
+            arguments: arguments,
+            exitCode: timedOut ? -1 : process.terminationStatus,
             output: String(data: outData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
-            error: String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            error: String(data: errData, encoding: .utf8)?.trimmingCharacters(in: .whitespacesAndNewlines) ?? "",
+            timedOut: timedOut
         )
-    }
-
-    public func zsh(_ command: String, timeout: TimeInterval = 6) throws -> ShellResult {
-        try run("/bin/zsh", ["-lc", command], timeout: timeout)
     }
 }

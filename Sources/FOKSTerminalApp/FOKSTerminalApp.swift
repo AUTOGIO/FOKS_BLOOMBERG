@@ -1,13 +1,13 @@
 import SwiftUI
-import FOKSTerminalCore
 
 @main
 struct FOKSTerminalApp: App {
     var body: some Scene {
         WindowGroup {
             TerminalView()
-                .frame(minWidth: 1200, minHeight: 760)
+                .frame(minWidth: 1280, minHeight: 820)
         }
         .windowStyle(.titleBar)
+        .windowToolbarStyle(.unifiedCompact)
     }
 }

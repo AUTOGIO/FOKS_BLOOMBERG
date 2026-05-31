@@ -8,6 +8,15 @@ if ! command -v swift >/dev/null 2>&1; then
   exit 1
 fi
 
+if [[ ! -f "$ROOT/config/projects.json" ]]; then
+  echo "FAIL missing $ROOT/config/projects.json"
+  exit 1
+fi
+
 cd "$ROOT"
+
 swift build
-echo "PASS FOKSTerminal builds"
+echo "PASS swift build"
+
+swift test
+echo "PASS swift test"

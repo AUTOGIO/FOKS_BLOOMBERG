@@ -1,24 +1,31 @@
-# FOKS Bloomberg Terminal
+# FOKS Terminal
 
-Native macOS SwiftUI MVP for the FoKS private ops dashboard.
+Fresh Apple-native FoKSTerminal for local read-only operations.
 
-The original React prototype is preserved:
+Source of truth:
 
-- `foks_dashboard.tsx`
-- `SWIFT.txt`
-- `Screenshot 2026-05-28 at 1.57.04 AM.png`
+```bash
+/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG
+```
 
-## Current Scope
+Target profile:
 
-Read-only native shell:
+```text
+MacBook Air | Apple M4 | 8 cores | 16 GB | macOS 26.6
+```
 
-- project path and git status inspection
-- process watchlist from `ps`
-- LaunchAgent watchlist from `launchctl`
-- recent FoKS log tail from local log files
-- persistent font scaling via `@AppStorage`
+## Scope
 
-No destructive commands are exposed from the UI.
+This version is intentionally read-only:
+
+- project inventory from `config/projects.json`
+- git health inspection with `/usr/bin/git`, including dirty-file previews
+- hardware overview from `sysctl`, `sw_vers`, and `uptime`
+- process watchlist from `/bin/ps`
+- LaunchAgent watchlist and failure analysis from `/bin/launchctl`
+- recent FoKS logs from allowlisted local log paths
+
+No cloud calls, no AI command routing, no script execution buttons, and no stored API keys.
 
 ## Run
 
@@ -31,24 +38,52 @@ swift run FOKSTerminal
 
 ```bash
 cd /Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG
-swift build
+./scripts/validate.sh
 ```
 
 Expected result:
 
 ```text
-Build complete!
+PASS swift build
+PASS swift test
 ```
+
+## Configuration
+
+Edit the local project inventory here:
+
+```bash
+/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG/config/projects.json
+```
+
+Schema:
+
+```json
+{
+  "projects": [
+    {
+      "id": "foks",
+      "shortName": "FOKS",
+      "displayName": "FOKS Bloomberg Terminal",
+      "path": "/absolute/path",
+      "group": "OPS",
+      "enabled": true
+    }
+  ]
+}
+```
+
+Disabled projects are ignored. Missing paths are rendered as explicit `MISSING` states.
 
 ## Architecture
 
 ```text
-Core Scripts / Readers
--> Swift shell adapter
--> SystemReader
--> SwiftUI interface
--> Manual refresh trigger
--> AI and automation later
+Core readers
+-> async command runner
+-> parser layer
+-> dashboard snapshot
+-> SwiftUI read-only interface
+-> manual refresh trigger
 ```
 
-Manual read-only inspection is the stop condition for this MVP. Script execution, AI command routing, and Home Assistant actions should be added only after the live read layer is stable.
+Script execution, local AI, and guarded actions are future phases after the read layer is stable.

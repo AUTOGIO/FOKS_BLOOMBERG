@@ -17,6 +17,10 @@ let package = Package(
         .executableTarget(
             name: "FOKSTerminalApp",
             dependencies: ["FOKSTerminalCore"]
+        ),
+        .testTarget(
+            name: "FOKSTerminalCoreTests",
+            dependencies: ["FOKSTerminalCore"]
         )
     ]
 )
