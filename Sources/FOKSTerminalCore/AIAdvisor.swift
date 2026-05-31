@@ -8,19 +8,11 @@ public struct DiagnosticBundleBuilder: Sendable {
         let dirtyProjects = snapshot.projects.filter { $0.health == .dirty }
         let failedAgents = snapshot.launchAgents.filter { $0.health == .failed }
         let stoppedAgents = snapshot.launchAgents.filter { $0.health == .stopped }
+        let actions = ActionCenterBuilder().build(snapshot: snapshot)
 
         var lines: [String] = [
             "FOKS TERMINAL LOCAL DIAGNOSTIC BUNDLE",
             "Rules: local-only analysis; do not suggest cloud services; do not suggest destructive git reset; provide commands only as review steps, not auto-execution.",
-            "",
-            "Hardware:",
-            "- target: \(snapshot.hardware.targetProfile)",
-            "- model: \(snapshot.hardware.modelIdentifier)",
-            "- chip: \(snapshot.hardware.chip)",
-            "- cores: \(snapshot.hardware.coreSummary)",
-            "- memory: \(snapshot.hardware.memory)",
-            "- os: \(snapshot.hardware.osVersion)",
-            "- uptime: \(snapshot.hardware.uptime)",
             "",
             "Portfolio summary:",
             "- projects: \(snapshot.projects.count)",
@@ -29,8 +21,19 @@ public struct DiagnosticBundleBuilder: Sendable {
             "- unpushed: \(snapshot.projects.filter { $0.health == .unpushed }.count)",
             "- missing: \(snapshot.projects.filter { $0.health == .missing }.count)",
             "",
-            "Selected project:"
+            "Action Center:",
         ]
+
+        for action in actions.prefix(6) {
+            lines.append("- \(action.severity.rawValue) \(action.scope): \(action.title)")
+            lines.append("  evidence: \(action.evidence)")
+            lines.append("  next: \(action.nextStep)")
+        }
+
+        lines.append(contentsOf: [
+            "",
+            "Selected project:"
+        ])
 
         if let selected {
             lines.append(contentsOf: projectLines(selected, dirtyLimit: 12))

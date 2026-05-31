@@ -7,6 +7,9 @@ import SwiftUI
 @Observable
 final class TerminalStore {
     var snapshot: DashboardSnapshot = .empty
+    var actions: [OperationalAction] = []
+    var doneActionIDs: Set<OperationalAction.ID> = []
+    var ignoredActionIDs: Set<OperationalAction.ID> = []
     var selectedProjectID: ProjectStatus.ID?
     var isRefreshing = false
     var isAnalyzing = false
@@ -15,6 +18,7 @@ final class TerminalStore {
 
     private let reader = SystemReader()
     private let aiAdvisor = LocalAIAdvisor()
+    private let actionBuilder = ActionCenterBuilder()
 
     func refresh() async {
         guard !isRefreshing else { return }
@@ -22,6 +26,7 @@ final class TerminalStore {
         statusMessage = "Refreshing local read model..."
         let nextSnapshot = await reader.readDashboard()
         snapshot = nextSnapshot
+        actions = actionBuilder.build(snapshot: nextSnapshot)
         if selectedProjectID == nil {
             selectedProjectID = nextSnapshot.projects.first?.id
         } else if !nextSnapshot.projects.contains(where: { $0.id == selectedProjectID }) {
@@ -42,6 +47,22 @@ final class TerminalStore {
         aiAnalysis = await aiAdvisor.analyze(snapshot: snapshot, selectedProjectID: selectedProjectID, model: model)
         statusMessage = aiAnalysis.status == .ready ? "Local AI analysis ready - no fixes executed" : "Local AI analysis failed"
         isAnalyzing = false
+    }
+
+    var openActions: [OperationalAction] {
+        actions.filter { !doneActionIDs.contains($0.id) && !ignoredActionIDs.contains($0.id) }
+    }
+
+    func markDone(_ action: OperationalAction) {
+        doneActionIDs.insert(action.id)
+        ignoredActionIDs.remove(action.id)
+        statusMessage = "Marked done: \(action.scope)"
+    }
+
+    func ignore(_ action: OperationalAction) {
+        ignoredActionIDs.insert(action.id)
+        doneActionIDs.remove(action.id)
+        statusMessage = "Ignored: \(action.scope)"
     }
 }
 
@@ -125,7 +146,7 @@ struct TerminalView: View {
             stat("DIRTY", "\(count(.dirty))", theme.accent)
             stat("UNPUSHED", "\(count(.unpushed))", theme.cyan)
             stat("MISSING", "\(count(.missing))", theme.red)
-            stat("PROCESSES", "\(store.snapshot.processes.count)", theme.green)
+            stat("ACTIONS", "\(store.openActions.count)", store.openActions.isEmpty ? theme.green : theme.accent)
             stat("AGENTS", "\(store.snapshot.launchAgents.count)", theme.cyan)
             stat("FAILED", "\(launchAgentIssueCount)", launchAgentIssueCount > 0 ? theme.red : theme.green)
         }
@@ -256,17 +277,8 @@ struct TerminalView: View {
 
     private var systemPanel: some View {
         VStack(spacing: 0) {
-            sectionHeader("HARDWARE OVERVIEW", right: "MacBook Air M4 profile", color: theme.cyan)
-            VStack(alignment: .leading, spacing: 9) {
-                detailRow("TARGET", store.snapshot.hardware.targetProfile, theme.green)
-                detailRow("MODEL", store.snapshot.hardware.modelIdentifier, theme.text)
-                detailRow("CHIP", store.snapshot.hardware.chip, theme.text)
-                detailRow("CORES", store.snapshot.hardware.coreSummary, theme.text)
-                detailRow("MEMORY", store.snapshot.hardware.memory, theme.text)
-                detailRow("OS", store.snapshot.hardware.osVersion, theme.text)
-                detailRow("UPTIME", store.snapshot.hardware.uptime, theme.muted)
-            }
-            .padding(12)
+            actionCenterPanel
+            fixQueuePanel
 
             sectionHeader("PROCESS WATCHLIST", right: "\(store.snapshot.processes.count)", color: theme.green)
             Table(store.snapshot.processes) {
@@ -286,7 +298,7 @@ struct TerminalView: View {
                     Text(process.command).foregroundStyle(theme.text)
                 }
             }
-            .frame(minHeight: 210)
+            .frame(minHeight: 120, idealHeight: 150)
 
             sectionHeader(
                 "LAUNCHCTL WATCHLIST",
@@ -314,7 +326,7 @@ struct TerminalView: View {
                 }
                 .width(min: 160, ideal: 220)
             }
-            .frame(minHeight: 180)
+            .frame(minHeight: 150, idealHeight: 180)
 
             if launchAgentIssueCount > 0 {
                 sectionHeader("LAUNCHAGENT ISSUES", color: theme.red)
@@ -392,6 +404,72 @@ struct TerminalView: View {
         .background(theme.background)
     }
 
+    private var actionCenterPanel: some View {
+        VStack(spacing: 0) {
+            sectionHeader(
+                "ACTION CENTER",
+                right: store.openActions.isEmpty ? "CLEAR" : "\(store.openActions.count) OPEN",
+                color: store.openActions.isEmpty ? theme.green : theme.accent
+            )
+            VStack(alignment: .leading, spacing: 7) {
+                if store.openActions.isEmpty {
+                    Text("No urgent operational actions in the current snapshot.")
+                        .foregroundStyle(theme.green)
+                } else {
+                    ForEach(store.openActions.prefix(3)) { action in
+                        HStack(alignment: .top, spacing: 8) {
+                            Text(action.severity.rawValue)
+                                .foregroundStyle(color(for: action.severity))
+                                .fontWeight(.black)
+                                .frame(width: 72, alignment: .leading)
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("\(action.scope) · \(action.title)")
+                                    .foregroundStyle(theme.text)
+                                    .fontWeight(.bold)
+                                    .lineLimit(1)
+                                Text(action.evidence)
+                                    .foregroundStyle(theme.muted)
+                                    .lineLimit(2)
+                                Text(action.nextStep)
+                                    .foregroundStyle(theme.accent)
+                                    .lineLimit(2)
+                            }
+                            Spacer(minLength: 0)
+                        }
+                    }
+                }
+            }
+            .padding(10)
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+    }
+
+    private var fixQueuePanel: some View {
+        VStack(spacing: 0) {
+            sectionHeader("FIX QUEUE", right: "copy/manual review", color: theme.cyan)
+            ScrollView {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(store.openActions.prefix(5)) { action in
+                        FixQueueCard(
+                            action: action,
+                            theme: theme,
+                            copyCommand: { copyToPasteboard(action.command) },
+                            markDone: { store.markDone(action) },
+                            ignore: { store.ignore(action) }
+                        )
+                    }
+                    if store.openActions.isEmpty {
+                        Text("Queue is empty.")
+                            .foregroundStyle(theme.muted)
+                    }
+                }
+                .padding(10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
+            .frame(minHeight: 165, idealHeight: 210)
+        }
+    }
+
     private var bottomBar: some View {
         HStack(spacing: 10) {
             Text("CMD>")
@@ -415,6 +493,12 @@ struct TerminalView: View {
 
     private var launchAgentIssueCount: Int {
         store.snapshot.launchAgents.filter { $0.health == .failed }.count
+    }
+
+    private func copyToPasteboard(_ text: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(text, forType: .string)
+        store.statusMessage = "Copied command for manual review"
     }
 
     private func count(_ health: ProjectStatus.Health) -> Int {
@@ -479,6 +563,64 @@ struct TerminalView: View {
         case .running: theme.cyan
         case .ready: theme.green
         case .failed: theme.red
+        }
+    }
+
+    private func color(for severity: OperationalAction.Severity) -> Color {
+        switch severity {
+        case .critical: theme.red
+        case .warning: theme.accent
+        case .info: theme.cyan
+        }
+    }
+}
+
+struct FixQueueCard: View {
+    let action: OperationalAction
+    let theme: TerminalTheme
+    let copyCommand: () -> Void
+    let markDone: () -> Void
+    let ignore: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(spacing: 8) {
+                Text(action.severity.rawValue)
+                    .foregroundStyle(color(for: action.severity))
+                    .fontWeight(.black)
+                Text(action.scope)
+                    .foregroundStyle(theme.cyan)
+                    .fontWeight(.bold)
+                Text(action.title)
+                    .foregroundStyle(theme.text)
+                Spacer()
+            }
+            Text(action.nextStep)
+                .foregroundStyle(theme.muted)
+                .lineLimit(2)
+            HStack(spacing: 8) {
+                Button("COPY COMMAND", action: copyCommand)
+                Button("DONE", action: markDone)
+                Button("IGNORE", action: ignore)
+                Spacer()
+            }
+            .buttonStyle(.bordered)
+            Text(action.command.split(separator: "\n").first.map(String.init) ?? action.command)
+                .foregroundStyle(theme.dim)
+                .lineLimit(1)
+                .truncationMode(.middle)
+                .textSelection(.enabled)
+        }
+        .padding(8)
+        .background(theme.panel)
+        .overlay(Rectangle().stroke(theme.border, lineWidth: 1))
+    }
+
+    private func color(for severity: OperationalAction.Severity) -> Color {
+        switch severity {
+        case .critical: theme.red
+        case .warning: theme.accent
+        case .info: theme.cyan
         }
     }
 }

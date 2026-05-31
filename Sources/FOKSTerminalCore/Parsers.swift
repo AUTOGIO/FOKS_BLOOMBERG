@@ -164,6 +164,8 @@ public enum LaunchAgentParser {
     public static func analyze(label: String, listPID: String, listStatus: String, printOutput: String) -> LaunchAgentSnapshot {
         let state = firstValue(in: printOutput, prefix: "state = ").nonEmpty(or: listPID == "none" ? "not running" : "running")
         let plistPath = firstValue(in: printOutput, prefix: "path = ")
+        let stdoutPath = firstValue(in: printOutput, prefix: "stdout path = ")
+        let stderrPath = firstValue(in: printOutput, prefix: "stderr path = ")
         let lastExitCode = firstValue(in: printOutput, prefix: "last exit code = ")
         let lastSignal = firstValue(in: printOutput, prefix: "last terminating signal = ")
         let runs = firstValue(in: printOutput, prefix: "runs = ")
@@ -195,7 +197,9 @@ public enum LaunchAgentParser {
             state: state,
             health: health,
             reason: reason,
-            plistPath: plistPath
+            plistPath: plistPath,
+            stdoutPath: stdoutPath,
+            stderrPath: stderrPath
         )
     }
 

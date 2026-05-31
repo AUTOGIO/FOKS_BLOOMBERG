@@ -133,6 +133,8 @@ final class FOKSTerminalCoreTests: XCTestCase {
         gui/501/com.personallifeos = {
             path = /Users/test/Library/LaunchAgents/com.personallifeos.plist
             state = spawn scheduled
+            stdout path = /tmp/personallifeos.log
+            stderr path = /tmp/personallifeos.err
             runs = 3042
             last exit code = 1
         }
@@ -149,6 +151,8 @@ final class FOKSTerminalCoreTests: XCTestCase {
         XCTAssertEqual(analyzed.state, "spawn scheduled")
         XCTAssertEqual(analyzed.reason, "last exit 1; runs 3042")
         XCTAssertEqual(analyzed.plistPath, "/Users/test/Library/LaunchAgents/com.personallifeos.plist")
+        XCTAssertEqual(analyzed.stdoutPath, "/tmp/personallifeos.log")
+        XCTAssertEqual(analyzed.stderrPath, "/tmp/personallifeos.err")
     }
 
     func testDiagnosticBundleIncludesDirtyAndLaunchAgentFailures() {
@@ -198,5 +202,46 @@ final class FOKSTerminalCoreTests: XCTestCase {
 
         XCTAssertTrue(result.timedOut)
         XCTAssertEqual(result.exitCode, -1)
+    }
+
+    func testActionCenterPrioritizesFailedAgentsAndDirtyRepos() {
+        let snapshot = DashboardSnapshot(
+            projects: [
+                ProjectStatus(
+                    id: "gmc",
+                    shortName: "GMC",
+                    displayName: "GMC",
+                    path: "/tmp/gmc",
+                    group: "FINANCE",
+                    health: .dirty,
+                    reason: "3 dirty files",
+                    dirtyFiles: 3,
+                    dirtyItems: ["D launcher.command", "M src/App.jsx"]
+                )
+            ],
+            hardware: .empty,
+            processes: [],
+            launchAgents: [
+                LaunchAgentSnapshot(
+                    pid: "none",
+                    status: "1",
+                    label: "com.personallifeos",
+                    state: "spawn scheduled",
+                    health: .failed,
+                    reason: "last exit 1; runs 10",
+                    plistPath: "/Users/test/Library/LaunchAgents/com.personallifeos.plist",
+                    stdoutPath: "/tmp/personallifeos.log",
+                    stderrPath: "/tmp/personallifeos.err"
+                )
+            ],
+            logs: []
+        )
+
+        let actions = ActionCenterBuilder().build(snapshot: snapshot)
+
+        XCTAssertEqual(actions.first?.id, "agent-com.personallifeos")
+        XCTAssertEqual(actions.first?.severity, .critical)
+        XCTAssertTrue(actions.first?.command.contains("tail -80 '/tmp/personallifeos.err'") == true)
+        XCTAssertTrue(actions.contains { $0.id == "project-dirty-gmc" })
     }
 }

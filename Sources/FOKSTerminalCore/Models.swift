@@ -193,6 +193,8 @@ public struct LaunchAgentSnapshot: Identifiable, Sendable, Equatable {
     public let health: Health
     public let reason: String
     public let plistPath: String
+    public let stdoutPath: String
+    public let stderrPath: String
 
     public enum Health: String, Sendable, CaseIterable {
         case running = "RUNNING"
@@ -209,7 +211,9 @@ public struct LaunchAgentSnapshot: Identifiable, Sendable, Equatable {
         state: String = "unknown",
         health: Health = .unknown,
         reason: String = "launchctl list only",
-        plistPath: String = ""
+        plistPath: String = "",
+        stdoutPath: String = "",
+        stderrPath: String = ""
     ) {
         self.id = label
         self.pid = pid
@@ -219,6 +223,8 @@ public struct LaunchAgentSnapshot: Identifiable, Sendable, Equatable {
         self.health = health
         self.reason = reason
         self.plistPath = plistPath
+        self.stdoutPath = stdoutPath
+        self.stderrPath = stderrPath
     }
 }
 
@@ -306,5 +312,47 @@ public struct LocalAIAnalysis: Sendable, Equatable {
         self.status = status
         self.text = text
         self.generatedAt = generatedAt
+    }
+}
+
+public struct OperationalAction: Identifiable, Sendable, Equatable {
+    public let id: String
+    public let severity: Severity
+    public let title: String
+    public let scope: String
+    public let evidence: String
+    public let nextStep: String
+    public let command: String
+
+    public enum Severity: String, Sendable, Equatable {
+        case critical = "CRITICAL"
+        case warning = "WARNING"
+        case info = "INFO"
+
+        var priority: Int {
+            switch self {
+            case .critical: return 100
+            case .warning: return 60
+            case .info: return 20
+            }
+        }
+    }
+
+    public init(
+        id: String,
+        severity: Severity,
+        title: String,
+        scope: String,
+        evidence: String,
+        nextStep: String,
+        command: String
+    ) {
+        self.id = id
+        self.severity = severity
+        self.title = title
+        self.scope = scope
+        self.evidence = evidence
+        self.nextStep = nextStep
+        self.command = command
     }
 }

@@ -24,6 +24,8 @@ This version is intentionally read-only:
 - process watchlist from `/bin/ps`
 - LaunchAgent watchlist and failure analysis from `/bin/launchctl`
 - recent FoKS logs from allowlisted local log paths
+- Action Center with prioritized operational issues
+- Fix Queue with copy-only manual command cards
 - local AI advisor through Ollama's `127.0.0.1:11434` HTTP API for diagnostic analysis and fix planning
 
 No cloud calls, no auto-fix execution, no destructive command buttons, and no stored API keys.
@@ -84,6 +86,7 @@ Core readers
 -> async command runner
 -> parser layer
 -> dashboard snapshot
+-> action center and fix queue
 -> SwiftUI read-only interface
 -> manual refresh trigger
 -> local Ollama advisor
