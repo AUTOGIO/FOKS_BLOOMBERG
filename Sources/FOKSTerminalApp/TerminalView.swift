@@ -75,11 +75,11 @@ struct TerminalView: View {
     private var statsBar: some View {
         HStack(spacing: 0) {
             stat("PROJECTS", "\(model.projects.count)", amber)
-            stat("OK", "\(model.projects.filter { $0.health == .ok }.count)", green)
-            stat("WARN", "\(model.projects.filter { $0.health == .warning }.count)", amber)
+            stat("CLEAN", "\(model.projects.filter { $0.health == .ok }.count)", green)
+            stat("DIRTY", "\(model.projects.filter { $0.health == .dirty }.count)", amber)
+            stat("UNPUSHED", "\(model.projects.filter { $0.health == .unpushed }.count)", cyan)
             stat("MISSING", "\(model.projects.filter { $0.health == .missing }.count)", red)
-            stat("PROCS", "\(model.processes.count)", cyan)
-            stat("AGENTS", "\(model.launchAgents.count)", green)
+            stat("SERVICES", "\(model.launchAgents.count)", green)
         }
         .background(Color(red: 0.03, green: 0.03, blue: 0.03))
     }
@@ -106,6 +106,7 @@ struct TerminalView: View {
                             Text(project.health.rawValue).foregroundStyle(color(for: project.health))
                         }
                         Text(project.name).foregroundStyle(.white.opacity(0.75))
+                        Text(project.reason).foregroundStyle(color(for: project.health))
                         Text(project.path).foregroundStyle(.secondary).lineLimit(1)
                     }
                     .tag(project.id)
@@ -124,7 +125,7 @@ struct TerminalView: View {
                 detailRows(for: selected)
             } else {
                 VStack(alignment: .leading, spacing: 10) {
-                    Text("Select a project to inspect live path/git status.")
+                    Text("Select a project to inspect triage facts.")
                         .foregroundStyle(.secondary)
                     Text("Manual success before automation. This MVP only reads system state.")
                         .foregroundStyle(amber)
@@ -153,9 +154,17 @@ struct TerminalView: View {
     private func detailRows(for project: ProjectStatus) -> some View {
         VStack(alignment: .leading, spacing: 10) {
             row("SHORT", project.shortName, color(for: project.health))
+            row("STATUS", project.health.rawValue, color(for: project.health))
+            row("REASON", project.reason, color(for: project.health))
             row("NAME", project.name, .white.opacity(0.8))
             row("PATH", project.path, .secondary)
-            row("GIT", project.gitSummary, color(for: project.health))
+            row("BRANCH", project.branch, cyan)
+            row("DIRTY", "\(project.dirtyFiles)", project.dirtyFiles > 0 ? amber : green)
+            row("AHEAD", "\(project.ahead)", project.ahead > 0 ? cyan : .secondary)
+            row("BEHIND", "\(project.behind)", project.behind > 0 ? amber : .secondary)
+            row("REMOTE", project.remoteURL.isEmpty ? "none" : project.remoteURL, project.remoteURL.isEmpty ? amber : .secondary)
+            row("NEXT", project.recommendedAction, color(for: project.health))
+            row("GIT", project.gitSummary, .secondary)
             row("MODE", "READ ONLY - no scripts executed", amber)
         }
         .padding(14)
@@ -183,7 +192,7 @@ struct TerminalView: View {
     private var bottomLog: some View {
         HStack {
             Text("CMD>").foregroundStyle(amber).fontWeight(.bold)
-            Text("read-only MVP; use REFRESH or Cmd+R")
+            Text("projects-first read-only cockpit; use REFRESH or Cmd+R")
                 .foregroundStyle(.secondary)
             Spacer()
             Text("No shell actions are executed from buttons.")
@@ -216,8 +225,11 @@ struct TerminalView: View {
     private func color(for health: ProjectStatus.Health) -> Color {
         switch health {
         case .ok: green
-        case .warning: amber
+        case .dirty: amber
+        case .unpushed: cyan
         case .missing: red
+        case .notGit: amber
+        case .unknown: amber
         }
     }
 }
