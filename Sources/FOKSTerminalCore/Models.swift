@@ -277,3 +277,34 @@ public struct DashboardSnapshot: Sendable, Equatable {
         self.refreshedAt = refreshedAt
     }
 }
+
+public struct LocalAIAnalysis: Sendable, Equatable {
+    public let provider: String
+    public let model: String
+    public let status: Status
+    public let text: String
+    public let generatedAt: Date
+
+    public enum Status: String, Sendable, Equatable {
+        case idle = "IDLE"
+        case running = "RUNNING"
+        case ready = "READY"
+        case failed = "FAILED"
+    }
+
+    public static let idle = LocalAIAnalysis(
+        provider: "Ollama",
+        model: "llama3.2:latest",
+        status: .idle,
+        text: "No AI analysis yet.",
+        generatedAt: .distantPast
+    )
+
+    public init(provider: String, model: String, status: Status, text: String, generatedAt: Date = Date()) {
+        self.provider = provider
+        self.model = model
+        self.status = status
+        self.text = text
+        self.generatedAt = generatedAt
+    }
+}

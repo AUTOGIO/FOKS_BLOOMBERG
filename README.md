@@ -24,8 +24,10 @@ This version is intentionally read-only:
 - process watchlist from `/bin/ps`
 - LaunchAgent watchlist and failure analysis from `/bin/launchctl`
 - recent FoKS logs from allowlisted local log paths
+- local AI advisor through Ollama's `127.0.0.1:11434` HTTP API for diagnostic analysis and fix planning
 
-No cloud calls, no AI command routing, no script execution buttons, and no stored API keys.
+No cloud calls, no auto-fix execution, no destructive command buttons, and no stored API keys.
+The AI advisor sends a compact local diagnostic bundle to an installed Ollama model and renders advice only.
 
 ## Run
 
@@ -84,6 +86,7 @@ Core readers
 -> dashboard snapshot
 -> SwiftUI read-only interface
 -> manual refresh trigger
+-> local Ollama advisor
 ```
 
-Script execution, local AI, and guarded actions are future phases after the read layer is stable.
+Guarded fix execution remains a future phase; the current AI layer is advisory only.

@@ -151,6 +151,47 @@ final class FOKSTerminalCoreTests: XCTestCase {
         XCTAssertEqual(analyzed.plistPath, "/Users/test/Library/LaunchAgents/com.personallifeos.plist")
     }
 
+    func testDiagnosticBundleIncludesDirtyAndLaunchAgentFailures() {
+        let snapshot = DashboardSnapshot(
+            projects: [
+                ProjectStatus(
+                    id: "life",
+                    shortName: "LIFE",
+                    displayName: "Personal Life OS",
+                    path: "/tmp/life",
+                    group: "LIFE",
+                    health: .dirty,
+                    reason: "2 dirty files",
+                    branch: "main",
+                    dirtyFiles: 2,
+                    dirtyItems: ["M core/views.py", "?? .env"]
+                )
+            ],
+            hardware: .empty,
+            processes: [
+                ProcessSnapshot(pid: "42", cpu: "1.0%", memory: "50 MB", command: "python manage.py runserver")
+            ],
+            launchAgents: [
+                LaunchAgentSnapshot(
+                    pid: "none",
+                    status: "1",
+                    label: "com.personallifeos",
+                    state: "spawn scheduled",
+                    health: .failed,
+                    reason: "last exit 1; runs 10",
+                    plistPath: "/Users/test/Library/LaunchAgents/com.personallifeos.plist"
+                )
+            ],
+            logs: []
+        )
+
+        let bundle = DiagnosticBundleBuilder().build(snapshot: snapshot, selectedProjectID: "life")
+
+        XCTAssertTrue(bundle.contains("M core/views.py"))
+        XCTAssertTrue(bundle.contains("com.personallifeos"))
+        XCTAssertTrue(bundle.contains("NOW / NEXT / LATER"))
+    }
+
     func testCommandTimeout() async {
         let runner = CommandRunner()
         let result = await runner.run("/bin/sleep", ["2"], timeout: 0.05)

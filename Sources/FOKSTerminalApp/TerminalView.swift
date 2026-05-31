@@ -8,9 +8,12 @@ final class TerminalStore {
     var snapshot: DashboardSnapshot = .empty
     var selectedProjectID: ProjectStatus.ID?
     var isRefreshing = false
+    var isAnalyzing = false
+    var aiAnalysis: LocalAIAnalysis = .idle
     var statusMessage = "READ ONLY - no scripts executed"
 
     private let reader = SystemReader()
+    private let aiAdvisor = LocalAIAdvisor()
 
     func refresh() async {
         guard !isRefreshing else { return }
@@ -26,12 +29,26 @@ final class TerminalStore {
         statusMessage = "READ ONLY - no scripts executed"
         isRefreshing = false
     }
+
+    func analyzeWithLocalAI(model: String) async {
+        guard !isAnalyzing else { return }
+        if snapshot.refreshedAt == .distantPast {
+            await refresh()
+        }
+        isAnalyzing = true
+        aiAnalysis = LocalAIAnalysis(provider: "Ollama", model: model, status: .running, text: "Sending local diagnostic bundle to \(model)...")
+        statusMessage = "Local AI analysis running with \(model)..."
+        aiAnalysis = await aiAdvisor.analyze(snapshot: snapshot, selectedProjectID: selectedProjectID, model: model)
+        statusMessage = aiAnalysis.status == .ready ? "Local AI analysis ready - no fixes executed" : "Local AI analysis failed"
+        isAnalyzing = false
+    }
 }
 
 struct TerminalView: View {
     @State private var store = TerminalStore()
     @AppStorage("foks.fontScale") private var fontScale = 1.0
     @AppStorage("foks.theme") private var themeName = TerminalTheme.amber.rawValue
+    @AppStorage("foks.localAIModel") private var localAIModel = "llama3.2:latest"
 
     private var theme: TerminalTheme {
         TerminalTheme(rawValue: themeName) ?? .amber
@@ -319,6 +336,42 @@ struct TerminalView: View {
                 }
                 .frame(maxHeight: 120)
             }
+
+            sectionHeader(
+                "LOCAL AI ADVISOR",
+                right: "\(store.aiAnalysis.provider) \(store.aiAnalysis.status.rawValue)",
+                color: color(for: store.aiAnalysis.status)
+            )
+            VStack(alignment: .leading, spacing: 8) {
+                HStack(spacing: 8) {
+                    Text("MODEL")
+                        .foregroundStyle(theme.muted)
+                    Picker("", selection: $localAIModel) {
+                        Text("llama3.2").tag("llama3.2:latest")
+                        Text("tinyllama").tag("tinyllama:1.1b")
+                    }
+                    .pickerStyle(.segmented)
+                    .frame(width: 210)
+
+                    Button(store.isAnalyzing ? "ANALYZING" : "ANALYZE METRICS") {
+                        Task { await store.analyzeWithLocalAI(model: localAIModel) }
+                    }
+                    .disabled(store.isAnalyzing || store.isRefreshing)
+
+                    Spacer()
+                }
+                Text("Local Ollama HTTP only. The model receives diagnostics and returns advice; it cannot execute fixes.")
+                    .foregroundStyle(theme.dim)
+                    .lineLimit(2)
+                ScrollView {
+                    Text(store.aiAnalysis.text)
+                        .foregroundStyle(color(for: store.aiAnalysis.status))
+                        .textSelection(.enabled)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                }
+                .frame(minHeight: 90)
+            }
+            .padding(10)
         }
         .background(theme.background)
     }
@@ -329,10 +382,10 @@ struct TerminalView: View {
                 .foregroundStyle(theme.accent)
                 .fontWeight(.black)
             Text(store.statusMessage)
-                .foregroundStyle(store.isRefreshing ? theme.cyan : theme.muted)
+                .foregroundStyle(store.isRefreshing || store.isAnalyzing ? theme.cyan : theme.muted)
             Spacer()
-            Text("No AI | No network | No command buttons")
-                .foregroundStyle(theme.red.opacity(0.8))
+            Text("Local AI advice only | no auto-fix execution")
+                .foregroundStyle(theme.accent.opacity(0.9))
         }
         .padding(.horizontal, 14)
         .padding(.vertical, 7)
@@ -401,6 +454,15 @@ struct TerminalView: View {
         case .failed: theme.red
         case .stopped: theme.accent
         case .unknown: theme.accent
+        }
+    }
+
+    private func color(for status: LocalAIAnalysis.Status) -> Color {
+        switch status {
+        case .idle: theme.muted
+        case .running: theme.cyan
+        case .ready: theme.green
+        case .failed: theme.red
         }
     }
 }
