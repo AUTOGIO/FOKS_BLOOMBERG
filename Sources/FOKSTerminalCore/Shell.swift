@@ -47,6 +47,27 @@ public struct CommandRunner: Sendable {
         arguments: [String],
         timeout: TimeInterval
     ) -> CommandResult {
+        guard executable.hasPrefix("/") else {
+            return CommandResult(
+                executable: executable,
+                arguments: arguments,
+                exitCode: -1,
+                output: "",
+                error: "rejected: executable must be an absolute path"
+            )
+        }
+
+        let blockedExecutables = ["/bin/sh", "/bin/bash", "/bin/zsh", "/usr/bin/env"]
+        guard !blockedExecutables.contains(executable) else {
+            return CommandResult(
+                executable: executable,
+                arguments: arguments,
+                exitCode: -1,
+                output: "",
+                error: "rejected: shell execution is not allowed"
+            )
+        }
+
         let process = Process()
         process.executableURL = URL(fileURLWithPath: executable)
         process.arguments = arguments

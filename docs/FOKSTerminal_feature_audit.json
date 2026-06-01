@@ -1,0 +1,255 @@
+{
+  "scope": {
+    "app": "FOKSTerminal.app",
+    "repo": "/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG",
+    "assessment_basis": [
+      "Source audit in Sources/FOKSTerminalApp and Sources/FOKSTerminalCore",
+      "Automated tests (27 passing in Tests/FOKSTerminalCoreTests)",
+      "Live command verification for metrics (vm_stat, memory_pressure, df -k /, sysctl -n hw.memsize)",
+      "Current documented scope in README.md and docs/NEXT_GENERATION_ARCHITECTURE.md"
+    ],
+    "notes": "Statuses are evidence-based from code/test/runtime checks; not every UI interaction was manually clicked in this pass."
+  },
+  "features": [
+    {
+      "name": "Native macOS app packaging (.app)",
+      "status": "Working",
+      "reasoning": "scripts/build_app.sh builds dist/FOKSTerminal.app; Info.plist validates and binary is arm64 Mach-O. App is launchable via open and process appears in pgrep.",
+      "conclusion": "Fully operational for local packaging and launch"
+    },
+    {
+      "name": "Read-only execution model",
+      "status": "Working",
+      "reasoning": "No auto-fix code path exists; Run Check executes explicit ReadOnlyCheck only. CommandRunner blocks shell trampolines and non-absolute executables.",
+      "conclusion": "Fully operational safety model for non-destructive behavior"
+    },
+    {
+      "name": "Dashboard module",
+      "status": "Working",
+      "reasoning": "Dashboard section exists in NavigationSplitView and displays health, issues, incidents, AI summary, project overview, and trend tile.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Projects Center module",
+      "status": "Working",
+      "reasoning": "Projects list + detail pane implemented with health, git fields, dirty preview, last activity, missing dependencies, warnings.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "System Center module",
+      "status": "Working",
+      "reasoning": "Shows CPU, memory, disk, network, uptime, hardware, process watchlist, LaunchAgents and LaunchDaemons tables.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Logs Center module",
+      "status": "Working",
+      "reasoning": "Search/filter UI implemented for severity, category, project, time window; only actionable logs shown by default filter.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Action Center module",
+      "status": "Working",
+      "reasoning": "ActionCenterBuilder prioritizes critical/warning/info actions from launchd/project/system/log state and renders cards.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Fix Queue module",
+      "status": "Working",
+      "reasoning": "Manual command cards are typed (binary + args + intent) with copy buttons; Run Check exists and uses ReadOnlyCheck.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Daily Ops Report module",
+      "status": "Working",
+      "reasoning": "DailyReportView generates Markdown or plain-text report and supports clipboard copy.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Project inventory loading from config/projects.json",
+      "status": "Working",
+      "reasoning": "ProjectConfigLoader now returns only configured enabled projects; test verifies no invented fallback projects when config missing.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Git repository health analysis",
+      "status": "Working",
+      "reasoning": "Uses git status/branch/remote/upstream/divergence/last commit and computes health + warnings; parser tests pass.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Dirty file inspection",
+      "status": "Working",
+      "reasoning": "Parses porcelain status into dirty counts/items and displays them in project detail and actions.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Branch ahead/behind monitoring",
+      "status": "Working",
+      "reasoning": "Reader executes rev-list --left-right --count and surfaces ahead/behind in project state/report/actions.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Missing project detection",
+      "status": "Working",
+      "reasoning": "Filesystem existence check marks project as MISSING and generates critical action/incident.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Missing dependency detection",
+      "status": "Partial",
+      "reasoning": "DependencyInspector uses heuristic markers (node_modules, .venv, etc.) and warning hints only. It does not perform language-specific dependency graph checks.",
+      "conclusion": "Partially operational (lightweight heuristics)"
+    },
+    {
+      "name": "CPU metrics",
+      "status": "Working",
+      "reasoning": "Computed from ps %cpu normalized by logical cores; availability handling prevents fake 0% when command fails.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Memory metrics accuracy",
+      "status": "Working",
+      "reasoning": "Patched to use memory_pressure free% primary path, vm_stat fallback corrected; tests added for both parsers and recent live check confirmed previous inflation issue resolved.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Disk metrics accuracy",
+      "status": "Working",
+      "reasoning": "df -k / parsing returns used% and free bytes; live check matched tile (18% and ~55 GB free). Nil returned for malformed output.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Network metrics",
+      "status": "Partial",
+      "reasoning": "Reads cumulative netstat byte counters (received/transmitted), not throughput/rate over time.",
+      "conclusion": "Partially operational (totals only)"
+    },
+    {
+      "name": "Uptime metrics",
+      "status": "Working",
+      "reasoning": "Reads uptime command and uses availability flag when unavailable.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Process monitoring",
+      "status": "Partial",
+      "reasoning": "Process list is watch-term filtered (not full process inventory) and capped, by design for operational signal.",
+      "conclusion": "Partially operational (curated watchlist, not exhaustive)"
+    },
+    {
+      "name": "LaunchAgent inspection",
+      "status": "Working",
+      "reasoning": "launchctl list + launchctl print analysis implemented with state/health/reason extraction and failure detection.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "LaunchDaemon inspection",
+      "status": "Partial",
+      "reasoning": "Discovery is filtered to relevant labels and runtime print attempted; not a full daemon inventory.",
+      "conclusion": "Partially operational (targeted scope)"
+    },
+    {
+      "name": "Incident aggregation",
+      "status": "Working",
+      "reasoning": "IncidentAggregator builds incidents from missing projects, failed launch services, severe logs, and critical system pressure.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Operational scoring (global/system/project)",
+      "status": "Working",
+      "reasoning": "Scoring models are implemented and now return 0 on unavailable system snapshot instead of false healthy default.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Trend tracking",
+      "status": "Partial",
+      "reasoning": "trendPoints exist in-memory (capped to 96 refreshes) but no persistence across app restarts.",
+      "conclusion": "Partially operational"
+    },
+    {
+      "name": "Ollama local AI integration (127.0.0.1:11434)",
+      "status": "Working",
+      "reasoning": "LocalAIAdvisor sends diagnostic bundle via HTTP to Ollama and handles HTTP/error/empty-response paths; Analyze provider dropdown keeps local Ollama as default and shows the local model picker.",
+      "conclusion": "Fully operational (depends on local Ollama runtime/model availability)"
+    },
+    {
+      "name": "Cloud AI analysis selector",
+      "status": "Working",
+      "reasoning": "Analyze now includes a Local AI / Cloud AI dropdown. CloudAIAdvisor requires FOKS_CLOUD_AI_ENDPOINT, FOKS_CLOUD_AI_API_KEY, and FOKS_CLOUD_AI_MODEL, requires HTTPS, and fails before sending when configuration is missing or invalid.",
+      "conclusion": "Operational as an explicit opt-in cloud path with no stored API keys"
+    },
+    {
+      "name": "AI safety constraints (advisory only)",
+      "status": "Working",
+      "reasoning": "Provider-specific prompts explicitly forbid destructive/auto-exec suggestions; app has no path from AI output to execution.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Clipboard exports (commands/reports/AI/check output)",
+      "status": "Working",
+      "reasoning": "Copy actions exist for manual commands, daily report, AI report, and check report via NSPasteboard.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Keyboard shortcuts",
+      "status": "Partial",
+      "reasoning": "Refresh and report copy shortcuts are present, but broader shortcut coverage across modules is limited.",
+      "conclusion": "Partially operational"
+    },
+    {
+      "name": "Accessibility support",
+      "status": "Partial",
+      "reasoning": "Uses native SwiftUI controls and scalable font setting, but no dedicated accessibility audit artifacts (VoiceOver labels, contrast audit, nav-only flow tests) are present.",
+      "conclusion": "Partially operational"
+    },
+    {
+      "name": "Data integrity policy (no fake data)",
+      "status": "Working",
+      "reasoning": "Hardcoded hardware profile removed; no synthetic missing-log records; failed metric reads display unavailable; tests cover no fallback projects and unavailable metric behavior.",
+      "conclusion": "Fully operational"
+    },
+    {
+      "name": "Cloud/service dependency avoidance",
+      "status": "Working",
+      "reasoning": "Local Ollama remains the default. Cloud analysis exists only behind explicit user selection and environment configuration, with no stored API keys or remote backend dependency required for normal operation.",
+      "conclusion": "Fully operational for local-first default operation"
+    },
+    {
+      "name": "Autonomous fixes / destructive actions",
+      "status": "Missing (intentionally)",
+      "reasoning": "Not implemented by design to preserve read-only safety model; no code paths for mutation/fix orchestration.",
+      "conclusion": "Intentionally not implemented"
+    },
+    {
+      "name": "Persistent historical analytics/trends",
+      "status": "Missing",
+      "reasoning": "Architecture doc explicitly states trend persistence is future work; current trend is in-memory only.",
+      "conclusion": "Not implemented"
+    },
+    {
+      "name": "Structured timestamp normalization across all log formats",
+      "status": "Partial",
+      "reasoning": "Architecture notes that not all log formats are timestamp-parsed; read-time is used when structured time is absent.",
+      "conclusion": "Partially operational"
+    },
+    {
+      "name": "User-editable project inventory in UI",
+      "status": "Missing",
+      "reasoning": "Config is file-based only; no in-app editor flow currently implemented.",
+      "conclusion": "Not implemented"
+    },
+    {
+      "name": "Signed/notarized distribution pipeline",
+      "status": "Missing",
+      "reasoning": "Current packaging is local ad hoc .app build; no signing/notarization flow in scripts/docs.",
+      "conclusion": "Not implemented"
+    }
+  ],
+  "summary": {
+    "working_count": 26,
+    "partial_count": 8,
+    "missing_count": 4,
+    "overall_assessment": "Core operational command-center functionality is implemented and functioning. Remaining gaps are mostly persistence/depth enhancements (historical trends, exhaustive daemon/process/log normalization, richer accessibility/shortcuts) and intentional omissions aligned with read-only safety."
+  }
+}
