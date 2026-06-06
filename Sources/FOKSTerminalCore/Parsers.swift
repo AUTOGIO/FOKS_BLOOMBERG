@@ -1,7 +1,10 @@
 import Foundation
 
 public enum ProjectConfigLoader {
-    public static let defaultConfigPath = "/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG/config/projects.json"
+    public static let defaultConfigPath: String = {
+        let home = FileManager.default.homeDirectoryForCurrentUser.path
+        return "\(home)/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG/config/projects.json"
+    }()
 
     public static func load(from url: URL = URL(fileURLWithPath: defaultConfigPath)) -> [ProjectConfig] {
         guard

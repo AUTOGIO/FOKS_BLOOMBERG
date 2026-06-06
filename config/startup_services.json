@@ -1,0 +1,15 @@
+{
+  "cloudflareTunnel": {
+    "binaryPath": "/opt/homebrew/bin/cloudflared",
+    "configPath": "",
+    "enabled": true,
+    "tunnelName": "ollama"
+  },
+  "localAI": {
+    "binaryPath": "/opt/homebrew/bin/ollama",
+    "enabled": true,
+    "healthURL": "http://127.0.0.1:11434/api/tags",
+    "startupTimeoutSeconds": 8
+  },
+  "startOnAppLaunch": true
+}

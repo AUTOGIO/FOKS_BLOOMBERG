@@ -1,10 +1,10 @@
 {
   "scope": {
     "app": "FOKSTerminal.app",
-    "repo": "/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG",
+    "repo": "/Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG",
     "assessment_basis": [
       "Source audit in Sources/FOKSTerminalApp and Sources/FOKSTerminalCore",
-      "Automated tests (27 passing in Tests/FOKSTerminalCoreTests)",
+      "Automated tests (29 passing in Tests/FOKSTerminalCoreTests)",
       "Live command verification for metrics (vm_stat, memory_pressure, df -k /, sysctl -n hw.memsize)",
       "Current documented scope in README.md and docs/NEXT_GENERATION_ARCHITECTURE.md"
     ],
@@ -172,6 +172,12 @@
       "status": "Working",
       "reasoning": "LocalAIAdvisor sends diagnostic bundle via HTTP to Ollama and handles HTTP/error/empty-response paths; Analyze provider dropdown keeps local Ollama as default and shows the local model picker.",
       "conclusion": "Fully operational (depends on local Ollama runtime/model availability)"
+    },
+    {
+      "name": "Launch-time local AI and Cloudflare Tunnel startup",
+      "status": "Working",
+      "reasoning": "StartupServiceManager checks/starts Ollama first, then checks/starts the named Cloudflare Tunnel from config/startup_services.json. The dashboard renders visible status rows and failures when binaries or tunnel configuration are missing.",
+      "conclusion": "Operational with explicit local config and no stored Cloudflare credentials"
     },
     {
       "name": "Cloud AI analysis selector",

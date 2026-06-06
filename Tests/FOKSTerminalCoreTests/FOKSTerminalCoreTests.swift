@@ -323,6 +323,66 @@ final class FOKSTerminalCoreTests: XCTestCase {
         XCTAssertEqual(configuration.model, "test-model")
     }
 
+    func testStartupServicesConfigLoadsLocalAIAndCloudflareTunnel() throws {
+        let root = FileManager.default.temporaryDirectory.appendingPathComponent("foks-startup-config-\(UUID().uuidString)")
+        let configURL = root.appendingPathComponent("startup_services.json")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        addTeardownBlock {
+            try? FileManager.default.removeItem(at: root)
+        }
+
+        try """
+        {
+          "startOnAppLaunch": true,
+          "localAI": {
+            "enabled": true,
+            "binaryPath": "/opt/homebrew/bin/ollama",
+            "healthURL": "http://127.0.0.1:11434/api/tags",
+            "startupTimeoutSeconds": 3
+          },
+          "cloudflareTunnel": {
+            "enabled": true,
+            "binaryPath": "/opt/homebrew/bin/cloudflared",
+            "tunnelName": "ollama",
+            "configPath": "/Users/test/.cloudflared/config.yml"
+          }
+        }
+        """.write(to: configURL, atomically: true, encoding: .utf8)
+
+        let config = try StartupServicesConfig.load(from: configURL, environment: [:])
+
+        XCTAssertTrue(config.startOnAppLaunch)
+        XCTAssertTrue(config.localAI.enabled)
+        XCTAssertEqual(config.localAI.launchArguments, ["serve"])
+        XCTAssertEqual(config.cloudflareTunnel.launchArguments, [
+            "tunnel",
+            "--config",
+            "/Users/test/.cloudflared/config.yml",
+            "--no-autoupdate",
+            "run",
+            "ollama"
+        ])
+    }
+
+    func testStartupServicesConfigEnvironmentOverrides() throws {
+        let config = try StartupServicesConfig.load(
+            from: URL(fileURLWithPath: "/tmp/foks-missing-startup-\(UUID().uuidString).json"),
+            environment: [
+                "FOKS_STARTUP_SERVICES_ENABLED": "false",
+                "FOKS_OLLAMA_BIN": "/tmp/ollama",
+                "FOKS_CLOUDFLARE_TUNNEL_ENABLED": "true",
+                "FOKS_CLOUDFLARED_BIN": "/tmp/cloudflared",
+                "FOKS_CLOUDFLARE_TUNNEL_NAME": "production"
+            ]
+        )
+
+        XCTAssertFalse(config.startOnAppLaunch)
+        XCTAssertEqual(config.localAI.binaryPath, "/tmp/ollama")
+        XCTAssertTrue(config.cloudflareTunnel.enabled)
+        XCTAssertEqual(config.cloudflareTunnel.binaryPath, "/tmp/cloudflared")
+        XCTAssertEqual(config.cloudflareTunnel.tunnelName, "production")
+    }
+
     func testCommandTimeout() async {
         let runner = CommandRunner()
         let result = await runner.run("/bin/sleep", ["2"], timeout: 0.05)

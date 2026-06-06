@@ -25,14 +25,14 @@ public struct ActionCenterBuilder: Sendable {
                             id: "foks-git-status",
                             title: "Check FOKS git state",
                             executable: "/usr/bin/git",
-                            arguments: ["-C", "/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG", "status", "--short", "--branch"],
+                            arguments: ["-C", "\(FileManager.default.homeDirectoryForCurrentUser.path)/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG", "status", "--short", "--branch"],
                             intent: "Confirm the FOKS Terminal repository still has no unexpected local changes."
                         )
                     ],
                     check: ReadOnlyCheck(
                         title: "Check FOKS git state",
                         executable: "/usr/bin/git",
-                        arguments: ["-C", "/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG", "status", "--short", "--branch"]
+                        arguments: ["-C", "\(FileManager.default.homeDirectoryForCurrentUser.path)/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG", "status", "--short", "--branch"]
                     )
                 )
             )

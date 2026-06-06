@@ -5,7 +5,7 @@
 This file applies to the repository at:
 
 ```text
-/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG
+/Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG
 ```
 
 FOKS Terminal is an Apple-native, local-first macOS operational command center for project visibility, system diagnostics, launchd inspection, logs, daily reporting, and advisory local AI analysis.
@@ -152,7 +152,7 @@ AI can classify, summarize, prioritize, and recommend. It must not silently move
 Before claiming the repo is healthy, run:
 
 ```bash
-cd /Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG
+cd /Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG
 ./scripts/validate.sh
 ```
 
@@ -166,9 +166,9 @@ PASS swift test
 To build the local app bundle:
 
 ```bash
-cd /Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG
+cd /Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG
 ./scripts/build_app.sh
-open /Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG/dist/FOKSTerminal.app
+open /Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG/dist/FOKSTerminal.app
 ```
 
 ## Documentation

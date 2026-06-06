@@ -1,7 +1,7 @@
 #!/bin/zsh
 set -euo pipefail
 
-ROOT="/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG"
+ROOT="/Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG"
 
 if ! command -v swift >/dev/null 2>&1; then
   echo "FAIL swift not found"

@@ -5,7 +5,7 @@ Apple-native operational command center for local read-only diagnostics, project
 Source of truth:
 
 ```bash
-/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG
+/Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG
 ```
 
 Runtime hardware:
@@ -33,6 +33,7 @@ This version is intentionally read-only:
 - Daily Ops Report export as Markdown or plain text
 - Fix Queue with copy-only manual command cards and read-only Run Check buttons
 - AI provider selector on Analyze, with local Ollama analysis by default and optional cloud analysis through explicit environment configuration
+- app launch startup services that start local Ollama first, then a named Cloudflare Tunnel from explicit config
 
 No cloud calls unless Cloud AI is explicitly selected, no auto-fix execution, no destructive command buttons, and no stored API keys.
 The AI advisor sends a compact diagnostic bundle to the selected provider and renders advice only.
@@ -45,7 +46,7 @@ The command runner rejects non-absolute executables and shell trampolines such a
 FOKS Terminal subscribes to `MXMetricManager` at app launch and stores received MetricKit payloads locally:
 
 ```bash
-/Users/eduardofgiovannini/Library/Application Support/FOKSTerminal/MetricKit
+/Users/giovannini_nuovo/Library/Application Support/FOKSTerminal/MetricKit
 ```
 
 MetricKit payload delivery is system-managed and normally daily. Empty payload counts mean the system has not delivered app-specific reports yet; the app does not fabricate replacement data.
@@ -77,22 +78,22 @@ No fake metrics are allowed:
 ## Run
 
 ```bash
-cd /Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG
+cd /Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG
 swift run FOKSTerminal
 ```
 
 ## Build .app
 
 ```bash
-cd /Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG
+cd /Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG
 ./scripts/build_app.sh
-open /Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG/dist/FOKSTerminal.app
+open /Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG/dist/FOKSTerminal.app
 ```
 
 ## Validate
 
 ```bash
-cd /Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG
+cd /Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG
 ./scripts/validate.sh
 ```
 
@@ -108,7 +109,7 @@ PASS swift test
 Edit the local project inventory here:
 
 ```bash
-/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG/config/projects.json
+/Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG/config/projects.json
 ```
 
 Schema:
@@ -145,6 +146,29 @@ export FOKS_CLOUD_AI_MODEL="..."
 
 Cloud keys are not stored by the app. Missing or invalid cloud configuration fails before a request is sent.
 
+## Startup Services
+
+The packaged `.app` starts configured services on launch in this order:
+
+1. Local AI through Ollama.
+2. Cloudflare Tunnel through `cloudflared tunnel run`.
+
+Startup config lives here:
+
+```bash
+/Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG/config/startup_services.json
+```
+
+Current default config:
+
+```text
+Ollama: /opt/homebrew/bin/ollama serve
+Ollama health: http://127.0.0.1:11434/api/tags
+Cloudflare: /opt/homebrew/bin/cloudflared tunnel --no-autoupdate run ollama
+```
+
+The app does not store Cloudflare credentials. The named tunnel must already exist in the user's Cloudflare configuration, or startup status will show `FAILED`.
+
 ## Architecture
 
 ```text
@@ -156,6 +180,7 @@ Core models and parsers
 -> action center and fix queue
 -> daily ops report builder
 -> MetricKit telemetry collector and local payload store
+-> startup services for local AI and Cloudflare Tunnel
 -> advisory AI provider selector
 -> local Ollama advisor or explicit cloud advisor
 -> SwiftUI command center
@@ -164,7 +189,7 @@ Core models and parsers
 See the detailed implementation architecture:
 
 ```bash
-/Users/eduardofgiovannini/Documents/GitHub/FOKS_BLOOMBERG/docs/NEXT_GENERATION_ARCHITECTURE.md
+/Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/FOKS_BLOOMBERG/docs/NEXT_GENERATION_ARCHITECTURE.md
 ```
 
 Guarded fix execution is intentionally out of scope. The current AI layer is advisory only.

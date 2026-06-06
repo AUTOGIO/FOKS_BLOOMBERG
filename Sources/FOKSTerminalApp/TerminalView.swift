@@ -21,11 +21,14 @@ final class TerminalStore {
     var automationRunResult: AutomationRunResult?
     var trendPoints: [HealthTrendPoint] = []
     var telemetrySnapshot: MetricKitTelemetrySnapshot = .empty
+    var startupServices: StartupServicesSnapshot = .idle
     var statusMessage = "Local read model ready - automation runs require button press"
+    var isStartingServices = false
 
     private let reader = SystemReader()
     private let aiAdvisor = LocalAIAdvisor()
     private let cloudAIAdvisor = CloudAIAdvisor()
+    private let startupServiceManager = StartupServiceManager()
     private let actionBuilder = ActionCenterBuilder()
     private let reportBuilder = DailyOpsReportBuilder()
     private let commandRunner = CommandRunner()
@@ -42,6 +45,15 @@ final class TerminalStore {
 
     var selectedProject: ProjectStatus? {
         snapshot.projects.first { $0.id == selectedProjectID }
+    }
+
+    func startStartupServices() async {
+        guard !isStartingServices else { return }
+        isStartingServices = true
+        statusMessage = "Starting local AI first, then Cloudflare Tunnel..."
+        startupServices = await startupServiceManager.startConfiguredServices()
+        statusMessage = "Startup services: \(startupServices.summary)"
+        isStartingServices = false
     }
 
     func refresh() async {
@@ -313,6 +325,7 @@ struct TerminalView: View {
             .background(theme.background)
         }
         .task {
+            await store.startStartupServices()
             await store.refresh()
         }
         .sheet(isPresented: $showingAIReport) {
@@ -445,7 +458,7 @@ struct TerminalView: View {
                 .foregroundStyle(theme.green)
                 .fontWeight(.black)
             Text(store.statusMessage)
-                .foregroundStyle(store.isRefreshing || store.isAnalyzing || store.runningCheckActionID != nil || store.runningAutomationID != nil || store.runningAppID != nil ? theme.cyan : theme.muted)
+                .foregroundStyle(store.isRefreshing || store.isAnalyzing || store.isStartingServices || store.runningCheckActionID != nil || store.runningAutomationID != nil || store.runningAppID != nil ? theme.cyan : theme.muted)
             Spacer()
             Text(selectedAIProvider.footerText + " | AI advice only | explicit checks, app opens, and manual automation runs")
                 .foregroundStyle(theme.dim)
@@ -544,11 +557,13 @@ struct DashboardCenterView: View {
                     MetricTile(title: "Apps", value: "\(store.snapshot.appBundles.count)", detail: "\(runningAppCount) running", color: runningAppCount == 0 ? theme.cyan : theme.green, comment: "Discovered local .app bundles from configured projects and user app folders.", theme: theme)
                 }
 
+                StartupServicesBlock(snapshot: store.startupServices, theme: theme)
+
                 AutomationListBlock(
                     store: store,
                     theme: theme,
                     title: "Automation Runner",
-                    detail: "/Users/eduardofgiovannini/Developer/automation",
+                    detail: "\(NSHomeDirectory())/Developer/automation",
                     showRunReport: showAutomationReport
                 )
 
@@ -1052,7 +1067,7 @@ struct AutomationsCenterView: View {
                     store: store,
                     theme: theme,
                     title: "Automation Inventory",
-                    detail: "/Users/eduardofgiovannini/Developer/automation",
+                    detail: "\(NSHomeDirectory())/Developer/automation",
                     showRunReport: showRunReport
                 )
             }
@@ -1126,6 +1141,62 @@ struct AppBundleListBlock: View {
                     )
                 }
             }
+        }
+    }
+}
+
+struct StartupServicesBlock: View {
+    let snapshot: StartupServicesSnapshot
+    let theme: TerminalTheme
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            SectionHeader("Startup Services", right: snapshot.status, color: statusColor(snapshot.status), theme: theme)
+            ForEach(snapshot.services) { service in
+                HStack(alignment: .top, spacing: 10) {
+                    Text(service.state.rawValue)
+                        .font(.system(size: 11, weight: .black, design: .monospaced))
+                        .foregroundStyle(color(for: service.state))
+                        .frame(width: 86, alignment: .leading)
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(service.kind.displayName)
+                            .foregroundStyle(theme.text)
+                            .fontWeight(.bold)
+                        Text(service.detail)
+                            .foregroundStyle(theme.muted)
+                            .textSelection(.enabled)
+                        if !service.command.isEmpty {
+                            Text(service.command)
+                                .foregroundStyle(theme.dim)
+                                .textSelection(.enabled)
+                                .lineLimit(2)
+                        }
+                    }
+                    Spacer()
+                }
+                .padding(10)
+                .background(theme.panel)
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(theme.border, lineWidth: 1))
+            }
+        }
+    }
+
+    private func statusColor(_ status: String) -> Color {
+        switch status {
+        case "RUNNING": theme.green
+        case "FAILED": theme.red
+        case "DISABLED": theme.muted
+        default: theme.cyan
+        }
+    }
+
+    private func color(for state: StartupServiceState) -> Color {
+        switch state {
+        case .running: theme.green
+        case .failed: theme.red
+        case .disabled: theme.muted
+        case .waiting: theme.cyan
         }
     }
 }
