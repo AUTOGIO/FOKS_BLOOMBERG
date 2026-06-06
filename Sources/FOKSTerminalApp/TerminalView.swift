@@ -1,4 +1,5 @@
 import FOKSTerminalCore
+import ShellRunner
 import AppKit
 import Observation
 import SwiftUI

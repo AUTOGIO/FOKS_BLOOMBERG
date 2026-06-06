@@ -1,4 +1,5 @@
 import Foundation
+import ShellRunner
 
 public enum StartupServiceKind: String, CaseIterable, Codable, Sendable, Hashable {
     case localAI

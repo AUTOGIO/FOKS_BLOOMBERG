@@ -10,9 +10,16 @@ let package = Package(
     products: [
         .executable(name: "FOKSTerminal", targets: ["FOKSTerminalApp"])
     ],
+    dependencies: [
+        .package(path: "/Users/giovannini_nuovo/Developer/PersonalOSKit")
+    ],
     targets: [
         .target(
-            name: "FOKSTerminalCore"
+            name: "FOKSTerminalCore",
+            dependencies: [
+                .product(name: "ShellRunner", package: "PersonalOSKit"),
+                .product(name: "OllamaClient", package: "PersonalOSKit"),
+            ]
         ),
         .executableTarget(
             name: "FOKSTerminalApp",
@@ -20,7 +27,10 @@ let package = Package(
         ),
         .testTarget(
             name: "FOKSTerminalCoreTests",
-            dependencies: ["FOKSTerminalCore"]
+            dependencies: [
+                "FOKSTerminalCore",
+                .product(name: "ShellRunner", package: "PersonalOSKit"),
+            ]
         )
     ]
 )

@@ -1,4 +1,5 @@
 import XCTest
+import ShellRunner
 @testable import FOKSTerminalCore
 
 final class FOKSTerminalCoreTests: XCTestCase {

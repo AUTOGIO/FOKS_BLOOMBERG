@@ -1,4 +1,5 @@
 import Foundation
+import ShellRunner
 
 public struct SystemReader: Sendable {
     private let runner: CommandRunner
