@@ -31,6 +31,14 @@
       "path": "/Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Documents/GitHub/PersonalLifeOS",
       "group": "LIFE",
       "enabled": true
+    },
+    {
+      "id": "home",
+      "shortName": "HOME",
+      "displayName": "Apple Home Automation",
+      "path": "/Users/giovannini_nuovo/Library/Mobile Documents/com~apple~CloudDocs/Projects (Essential)/Homebridge_Project",
+      "group": "HOME",
+      "enabled": true
     }
   ]
 }
